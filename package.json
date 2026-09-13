@@ -1,0 +1,39 @@
+{
+  "name": "@kvnloo/ripple",
+  "version": "0.1.0",
+  "description": "Ripple — ephemeral intent surface Dash mounts. S-Pen is an input. Consumes AODL as data.",
+  "license": "MIT",
+  "author": "Kevin Rajan <7121943+kvnloo@users.noreply.github.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kvnloo/ripple.git"
+  },
+  "homepage": "https://github.com/kvnloo/ripple",
+  "bugs": {
+    "url": "https://github.com/kvnloo/ripple/issues"
+  },
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "react-native": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "docs",
+    "LICENSE",
+    "README.md",
+    "AGENTS.md"
+  ],
+  "sideEffects": false,
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
+  "scripts": {
+    "test": "bun test src"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  }
+}

@@ -33,11 +33,11 @@ import {
 import { surfaceColors } from "./tokens";
 import { ZOOM_NODE, ZOOM_PATTERN, zoomLabel } from "./zoom";
 
-export type IntentSurfaceHandle = {
+export type RippleHandle = {
   snapshot(): { document: IntentDocument; stylus: IntentStylusEvent[]; wire: IntentWire };
 };
 
-export type IntentSurfaceProps = {
+export type RippleProps = {
   harnessId?: string;
   visualId?: string;
   docked?: boolean;
@@ -47,10 +47,10 @@ export type IntentSurfaceProps = {
   children?: ReactNode;
   onDeclare?(document: IntentDocument, stylus: IntentStylusEvent[]): void;
   onStylus?(event: IntentStylusEvent): void;
-  surfaceRef?: { current: IntentSurfaceHandle | null };
+  surfaceRef?: { current: RippleHandle | null };
 };
 
-export function IntentSurface({
+export function Ripple({
   harnessId,
   visualId,
   docked = false,
@@ -61,7 +61,7 @@ export function IntentSurface({
   onDeclare,
   onStylus,
   surfaceRef,
-}: IntentSurfaceProps) {
+}: RippleProps) {
   const [session, setSession] = useState<IntentSession>(() =>
     createIntentSession({ declared: initialDeclared, harnessId, visualId }),
   );
@@ -145,7 +145,7 @@ export function IntentSurface({
   const preview = session.document.declared.trim().length > 0 ? session.document.declared : "Declare intent";
 
   return (
-    <View style={[styles.root, docked ? styles.docked : null]} testID="aodl-intent-surface" accessibilityLabel="Intent surface">
+    <View style={[styles.root, docked ? styles.docked : null]} testID="ripple" accessibilityLabel="Ripple">
       {chips.length > 0 ? (
         <View style={styles.chips} accessibilityLabel="Unresolved intent">
           {chips.map((q) => (

@@ -3,8 +3,8 @@ export { AODL_HARNESS_IDS, AODL_VISUAL_IDS, isAodlHarnessId, isAodlVisualId } fr
 export type { AodlHarnessId, AodlVisualId } from "./catalog-ids";
 export { parseIntentDocument, questionsFor, resolveQuestion, withDeclared } from "./document";
 export type { IntentDocument, QuestionWhy, UnresolvedQuestion } from "./document";
-export { IntentSurface } from "./IntentSurface";
-export type { IntentSurfaceHandle, IntentSurfaceProps } from "./IntentSurface";
+export { Ripple } from "./Ripple";
+export type { RippleHandle, RippleProps } from "./Ripple";
 export { createIntentSession, sessionCycleZoom, sessionDeclare, sessionRecord, sessionResolve, sessionSetErase } from "./pretotype";
 export type { IntentSession } from "./pretotype";
 export { StylusCapture } from "./StylusCapture";

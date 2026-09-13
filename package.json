@@ -1,16 +1,16 @@
 {
-  "name": "@kvnloo/aodl-ui",
+  "name": "@kvnloo/ripple",
   "version": "0.1.0",
-  "description": "Ephemeral intent surface Dash mounts. Consumes AODL as data. Not a catalog, not HOTL, not a scheduler.",
+  "description": "Ripple — ephemeral intent surface Dash mounts. S-Pen is an input. Consumes AODL as data.",
   "license": "MIT",
   "author": "Kevin Rajan <7121943+kvnloo@users.noreply.github.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kvnloo/aodl-ui.git"
+    "url": "git+https://github.com/kvnloo/ripple.git"
   },
-  "homepage": "https://github.com/kvnloo/aodl-ui",
+  "homepage": "https://github.com/kvnloo/ripple",
   "bugs": {
-    "url": "https://github.com/kvnloo/aodl-ui/issues"
+    "url": "https://github.com/kvnloo/ripple/issues"
   },
   "main": "src/index.ts",
   "types": "src/index.ts",

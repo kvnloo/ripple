@@ -38,4 +38,4 @@ Later (optional): an Expo config plugin in a **dev client** that forwards those 
 
 ## Keyboard (host)
 
-`softwareKeyboardLayoutMode: resize` does not lift the UI on this device. Dash must wrap `IntentSurface` in `KeyboardDock` (`KeyboardStickyView`). This package never sets `paddingBottom: insets.bottom` as a substitute.
+`softwareKeyboardLayoutMode: resize` does not lift the UI on this device. Dash must wrap `Ripple` in `KeyboardDock` (`KeyboardStickyView`). This package never sets `paddingBottom: insets.bottom` as a substitute.

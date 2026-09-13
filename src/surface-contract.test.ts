@@ -8,16 +8,19 @@ function read(rel: string): string {
   return readFileSync(join(root, rel), "utf8");
 }
 
-describe("IntentSurface source contract", () => {
-  test("exports IntentSurface as the Dash-mounted object", () => {
+describe("Ripple source contract", () => {
+  test("exports Ripple as the Dash-mounted object, not IntentSurface", () => {
     const index = read("src/index.ts");
-    expect(index).toContain("export { IntentSurface }");
+    expect(index).toContain("export { Ripple }");
+    expect(index).not.toContain("IntentSurface");
     expect(index).not.toContain("Orchestra");
     expect(index).not.toContain("OpenAvatar");
   });
 
   test("pins node geometry and zoom language inside one node", () => {
-    const src = read("src/IntentSurface.tsx");
+    const src = read("src/Ripple.tsx");
+    expect(src).toContain("export function Ripple");
+    expect(src).not.toContain("IntentSurface");
     expect(src).toContain("INTENT_NODE_SIZE");
     expect(src).toContain("INTENT_STRIP_HEIGHT");
     expect(src).toContain("INTENT_PATTERN_DOT");
@@ -33,7 +36,7 @@ describe("IntentSurface source contract", () => {
   });
 
   test("stylus layer does not wrap children so IME/finger still own Composer", () => {
-    const src = read("src/IntentSurface.tsx");
+    const src = read("src/Ripple.tsx");
     const stylusAt = src.indexOf("<StylusCapture");
     const childrenAt = src.indexOf("{children}");
     expect(stylusAt).toBeGreaterThan(0);
@@ -44,7 +47,7 @@ describe("IntentSurface source contract", () => {
     expect(capture).not.toContain("expo-");
   });
 
-  test("repo does not own HOTL or a validator", () => {
+  test("repo does not own HOTL or a validator, and is not named aodl-ui", () => {
     const names = readdirSync(root);
     expect(names).not.toContain("schema");
     expect(names).not.toContain("tests");
@@ -52,7 +55,10 @@ describe("IntentSurface source contract", () => {
     expect(agents).toContain("Do not");
     expect(agents).toContain("HOTL");
     expect(agents).toContain("Expo Go");
-    expect(read("package.json")).toContain('"name": "@kvnloo/aodl-ui"');
+    expect(agents).toContain("Ripple");
+    expect(read("package.json")).toContain('"name": "@kvnloo/ripple"');
+    expect(read("package.json")).not.toContain("aodl-ui");
     expect(read("package.json")).not.toContain("react-native-reanimated");
+    expect(read("README.md")).toContain("Ephemeral Intent Surface");
   });
 });

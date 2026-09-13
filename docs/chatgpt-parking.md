@@ -1,6 +1,9 @@
 # Ephemeral intent surface
 
+Product name: **Ripple**. Gloss: Ephemeral Intent Surface. S-Pen is an input.
+
 Parked from the 2026-09-12 ChatGPT thread. **UI/UX only.** Language, schema, and participation contract stay in AODL.
+
 
 ## What the thread actually asked for
 

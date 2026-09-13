@@ -1,19 +1,19 @@
-# How Dash consumes this package
+# How Dash consumes Ripple
 
-`IntentSurface` is the first-class object. Mount it on the **chat/composer** path, not Orchestra / Bots.
+`Ripple` is the first-class object (ephemeral intent surface). Mount it on the **chat/composer** path, not Orchestra / Bots.
 
 ```tsx
-import { IntentSurface } from "@kvnloo/aodl-ui";
+import { Ripple } from "@kvnloo/ripple";
 
 <KeyboardDock>
-  <IntentSurface
+  <Ripple
     harnessId={harnessId}
     docked
     debugFallback={Platform.OS === "web"}
     onDeclare={(doc, stylus) => sendChat({ text: doc.declared, intent: toIntentWire(doc, stylus) })}
   >
     <Composer ... />
-  </IntentSurface>
+  </Ripple>
 </KeyboardDock>
 ```
 
@@ -22,12 +22,12 @@ import { IntentSurface } from "@kvnloo/aodl-ui";
 From `app/`:
 
 ```bash
-bunx expo install @kvnloo/aodl-ui
+bunx expo install @kvnloo/ripple
 ```
 
-If the package is not on npm yet, `file:vendor/aodl-ui` or `github:kvnloo/aodl-ui#<sha>`. Still run the install from `app/`. Never hand-edit `package.json`. No native modules.
+If the package is not on npm yet, `file:vendor/ripple` or `github:kvnloo/ripple#<sha>`. Still run the install from `app/`. Never hand-edit `package.json`. No native modules.
 
-Metro must compile the TypeScript source (this package ships `src/*.ts`, not a prebuild). Add `vendor/aodl-ui` (or `node_modules/@kvnloo/aodl-ui`) to `watchFolders`.
+Metro must compile the TypeScript source (this package ships `src/*.ts`, not a prebuild). Add `vendor/ripple` (or `node_modules/@kvnloo/ripple`) to `watchFolders`.
 
 ## Protocol
 

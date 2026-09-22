@@ -1,0 +1,42 @@
+version: 1
+repo: kvnloo/ripple
+id: ripple
+kind: projection
+summary: Ephemeral intent interaction surface that consumes AODL contracts without owning the orchestration IR.
+
+architecture:
+  subsystems:
+    - id: intent-surface-contract
+      name: Intent surface contract
+      kind: interaction_spec
+      summary: Defines the relationship-first UI surface, multimodal declaration behavior, zoom language, and host boundaries.
+      paths:
+        - README.md
+        - AGENTS.md
+
+  implements_mechanisms: []
+
+  provides_interfaces: []
+  consumes_interfaces:
+    - aodl.intent.v1
+
+  produces_representations: []
+  consumes_representations:
+    - aodl-intent
+
+  boundaries:
+    owns:
+      - ephemeral human intent interaction
+      - typed stylus and declaration interaction contract
+      - intent-surface visual behavior
+    not_here:
+      - AODL schema authority
+      - scheduling or execution
+      - harness catalog ownership
+
+  evidence:
+    docs:
+      - README.md
+      - AGENTS.md
+    tests: []
+    schemas: []

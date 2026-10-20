@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Ripple · visual review</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<header id="top">
+  <div class="brand"><span class="dot"></span> Ripple <span class="sub">visual review</span></div>
+  <div id="title" class="title"></div>
+  <div class="status">
+    <span id="mic-pill" class="pill" title="Microphone state. Only opened while you hold Space or the mic button; audio is transcribed on this machine and deleted.">mic off</span>
+    <span id="store-pill" class="pill" title="Events stored locally in SQLite">store …</span>
+    <span id="bridge-pill" class="pill dim" title="Hermes API bridge">agent: queue file</span>
+  </div>
+</header>
+<main>
+  <aside id="queue" aria-label="Decision queue"></aside>
+  <section id="stage">
+    <div id="cardhead">
+      <div id="question"></div>
+      <div id="modes" role="toolbar" aria-label="Compare mode">
+        <button data-mode="grid" title="Side by side (G)">Side by side</button>
+        <button data-mode="swipe" title="Swipe (S)">Swipe</button>
+        <button data-mode="overlay" title="Overlay (V)">Overlay</button>
+        <button data-mode="flicker" title="Flicker (F)">Flicker</button>
+        <button data-mode="diff" title="Difference (D)">Difference</button>
+        <span class="ab"><label>A <select id="sel-a"></select></label><label>B <select id="sel-b"></select></label>
+          <input id="opacity" type="range" min="0" max="100" value="50" title="Overlay opacity" /></span>
+        <button id="reset-zoom" title="Reset zoom (0)">1:1</button>
+      </div>
+    </div>
+    <div id="panes"></div>
+    <div id="cardnote"></div>
+  </section>
+</main>
+<footer id="bottom">
+  <div id="tools" role="toolbar" aria-label="Ink tools">
+    <button data-tool="pen" title="Pen (P)">✎ Pen</button>
+    <button data-tool="arrow" title="Arrow (A)">➚ Arrow</button>
+    <button data-tool="ellipse" title="Circle (O)">◯ Circle</button>
+    <button data-tool="box" title="Box (B)">▭ Box</button>
+    <button data-tool="text" title="Text (T)">T Text</button>
+    <button data-tool="pin" title="Pin (N)">● Pin</button>
+    <button data-tool="eraser" title="Eraser (E)">⌫ Erase</button>
+    <button data-tool="pan" title="Pan (H) · or Alt-drag / wheel to zoom">✋ Pan</button>
+    <span class="sep"></span>
+    <button id="undo" title="Undo (Ctrl+Z)">↶</button>
+    <button id="redo" title="Redo (Ctrl+Shift+Z)">↷</button>
+  </div>
+  <div id="talk">
+    <button id="mic" title="Hold to talk (or hold Space)">🎙 Hold to talk</button>
+    <div id="speech">
+      <div id="focus-row">
+        <span class="k">under pointer</span> <span id="hover-chip" class="chip dim">—</span>
+        <span class="k">talking about</span> <button id="focus-chip" class="chip" title="Click to correct">—</button>
+        <select id="focus-fix" hidden aria-label="Correct the object"></select>
+      </div>
+      <div id="transcript" aria-live="polite"></div>
+      <div id="restate-row">
+        <input id="restatement" placeholder="Agent restatement appears here — Enter confirms, hold Space to re-speak, Esc discards" />
+        <label class="rule"><input id="rule" type="checkbox" /> always</label>
+        <button id="confirm" title="Enter">Confirm ⏎</button>
+      </div>
+    </div>
+  </div>
+  <div id="decide">
+    <div id="pick-buttons"></div>
+    <input id="reason" placeholder="reason (optional)" />
+    <span id="pick-state"></span>
+  </div>
+</footer>
+<div id="toast" hidden></div>
+<script type="module" src="/dist/app.js"></script>
+</body>
+</html>

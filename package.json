@@ -1,0 +1,30 @@
+{
+  "name": "@kvnloo/aodl-ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ripple: the ephemeral intent surface Dash mounts. Visual review surface (draw + speak + pick) for render review.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "test": "bun test src",
+    "build:web": "bun build web/app.ts --outdir web/dist --target browser --minify-whitespace",
+    "review": "bun run build:web && bun server/serve.ts",
+    "smoke": "python3 tests/browser/smoke.py"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "5"
+  }
+}

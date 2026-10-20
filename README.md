@@ -53,6 +53,10 @@ Expo Go cannot see `MotionEvent.TOOL_TYPE_STYLUS`. The JS contract is closed; we
 
 This package does **not** dock itself. On the S25, Expo Go ignores `softwareKeyboardLayoutMode: resize`. Host in Dash `KeyboardDock`. Do not add `paddingBottom: insets.bottom` here.
 
+## Fast controls
+
+Small questions an agent asks while it works (a choice, a slider, a confirm, a pick from candidates) share one schema and one interaction model across Dash, the web surface and Tern: [docs/fast-controls.md](docs/fast-controls.md), code in `src/fast-controls/`.
+
 ## Develop
 
 ```bash

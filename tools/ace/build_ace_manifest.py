@@ -145,11 +145,11 @@ def main():
     labeler = load_labeler(Path(a.labels))
     idm = Path(a.idmask)
 
-    v2_arrival = newest(ARCH, 'CAM_Campus_Arrival.png', '*_ace_campus_arrival_h10.png')
-    v2_aerial = newest(ARCH, 'CAM_Campus_Aerial.png', '*_ace_campus_aerial_h10.png')
-    v2_aerial_alt = newest(ARCH, 'CAM_Campus_Aerial_v2.png', '*_ace_campus_aerial_v2_h10.png')
-    cur_arrival = sorted(FINALS.glob('*_ace_campus_arrival_h10.png'))[-1]
-    cur_aerial = sorted(FINALS.glob('*_ace_campus_aerial_h10.png'))[-1]
+    v2_arrival = newest(ARCH, 'CAM_Campus_Arrival.png', '*ace_campus_arrival_h10.png')
+    v2_aerial = newest(ARCH, 'CAM_Campus_Aerial.png', '*ace_campus_aerial_h10.png')
+    v2_aerial_alt = newest(ARCH, 'CAM_Campus_Aerial_v2.png', '*ace_campus_aerial_v2_h10.png')
+    cur_arrival = sorted(FINALS.glob('*ace_campus_arrival_h10.png'))[-1]
+    cur_aerial = sorted(FINALS.glob('*ace_campus_aerial_h10.png'))[-1]
     def lane_round(p: Path) -> str:
         return 'arch-v2 final (VISION)' if p.parent.name == 'finals' else f'arch-v2 {p.parent.name} (lane preview, VISION)'
 

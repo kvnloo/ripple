@@ -88,7 +88,7 @@ function transcribe(path: string): Promise<Record<string, unknown>> {
     const timer = setTimeout(() => {
       pending.delete(id);
       res({ error: 'timeout' });
-    }, 60_000);
+    }, 120_000);
     pending.set(id, { resolve: (v) => (clearTimeout(timer), res(v as Record<string, unknown>)) });
     worker.stdin!.write(JSON.stringify({ id, path }) + '\n');
   });

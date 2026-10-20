@@ -23,8 +23,12 @@ for line in sys.stdin:
         continue
     t = time.time()
     try:
-        segs, info = model.transcribe(req['path'], word_timestamps=True, vad_filter=False,
-                                      beam_size=1, language='en', condition_on_previous_text=False)
+        # VAD skips silence (a silent hold otherwise loops through temperature
+        # fallbacks for 10+ s on a loaded CPU); timestamps stay on the original clock.
+        segs, info = model.transcribe(req['path'], word_timestamps=True, vad_filter=True,
+                                      vad_parameters={'min_silence_duration_ms': 400},
+                                      beam_size=1, temperature=0.0, language='en',
+                                      condition_on_previous_text=False)
         words, texts = [], []
         for s in segs:
             texts.append(s.text.strip())

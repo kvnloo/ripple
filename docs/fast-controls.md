@@ -63,3 +63,28 @@ available in Tern; they stay on the Dash and web surfaces. A slider in Tern move
 −/+ buttons.
 
 Voice: the interaction model takes a transcript (`{kind: 'say', text}`). The Tern store exposes `hear(text)` for the open control; dictation can call it once the composer has a microphone. It is not wired to one yet.
+
+## Native renderer and the libfx worker
+
+`src/native/` (`@kvnloo/aodl-ui/native`) is the React Native renderer, `FastControlView`: react and
+react-native only, so it runs in Expo Go. Taps go through `step()` like every other input, each row
+says its state in words ("Selected", number, design version) so meaning survives without colour,
+and every target is at least 44 px. It is outside `src/fast-controls/` so Tern's vendored copy of
+that directory stays renderer-neutral.
+
+Controls come from a libfx worker (`fx`) that z0bridge attaches to a Hermes session. The worker
+proposes one with its `propose_control` tool, or fx0's own `ask_user_question` tool becomes choice
+controls; the turn stream carries `{type: "control", control}` (`controlOf()` reads it). The pick
+goes back with `intentBody()` to `POST /v1/sessions/fx/:profile/:worker/intents`, which writes it into
+the owning Hermes session as a receipt (a child record), so Hermes, which owns the conversation,
+holds every decision. The host app owns the transport: Dash's bridge holds z0bridge's token, the
+phone never does. Each control is a proposal: "Not now" puts it away without an answer.
+
+```tsx
+import { FastControlView, controlOf, intentBody } from '@kvnloo/aodl-ui/native'
+
+const control = controlOf(event)            // from the worker's turn stream
+<FastControlView control={control} surface="dash-live-surface"
+  onIntent={intent => post(`/v1/sessions/fx/${profile}/${worker}/intents`, intentBody(intent))}
+  onDismiss={() => hide(control.id)} />
+```

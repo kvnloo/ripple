@@ -26,7 +26,8 @@ if (!SESSION || !existsSync(join(SESSION, 'manifest.json'))) {
 }
 const ROOT = resolve(import.meta.dir, '..');
 const DATA = join(SESSION, 'data');
-mkdirSync(join(DATA, 'tmp'), { recursive: true });
+mkdirSync(join(DATA, 'tmp'), { recursive: true }); // uploaded audio only, deleted after each request
+mkdirSync(join(DATA, 'worker-tmp'), { recursive: true }); // library scratch of the STT worker
 const NO_WHISPER = args.includes('--no-whisper');
 
 // ---------- store ----------
@@ -50,7 +51,7 @@ function startWorker() {
   if (NO_WHISPER) return;
   // Dedicated STT venv (faster-whisper) by default; RIPPLE_PYTHON overrides. Clean env, offline model cache.
   const py = process.env.RIPPLE_PYTHON || join(process.env.HOME ?? '', '.local/share/ripple/stt-venv/bin/python');
-  const env = { HOME: process.env.HOME ?? '', PATH: '/usr/bin:/bin', TMPDIR: join(DATA, 'tmp'), HF_HUB_OFFLINE: '1' };
+  const env = { HOME: process.env.HOME ?? '', PATH: '/usr/bin:/bin', TMPDIR: join(DATA, 'worker-tmp'), HF_HUB_OFFLINE: '1' };
   worker = spawn(py, [join(ROOT, 'server/transcribe_worker.py')], { env, stdio: ['pipe', 'pipe', 'inherit'] });
   worker.on('error', (e) => console.error('whisper worker failed to start', py, e.message));
   const rl = createInterface({ input: worker.stdout! });

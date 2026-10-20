@@ -222,6 +222,22 @@ def main():
             s = pg.evaluate(f'{T}.state()')
             check('reload replays the local store (picks + strokes persist)', s['picks'].get('arrival') == 'v2' and s['strokes'].get('aerial/current') == 1 and s['events'] >= n_before - 2,
                   f"events={s['events']} picks={s['picks']} strokes={s['strokes']}")
+            # V2 arrival: point at the biosphere dome and talk about it
+            pg.keyboard.press('[')
+            pg.wait_for_function(f'{T}.ready() && {T}.state().card === "arrival"', timeout=20000)
+            v2g = pg.evaluate(f'{T}.groupsBySize("v2")')
+            dome = next((g for g in v2g if 'dome' in g['label']), None)
+            if dome:
+                pd = pg.evaluate(f'{T}.locate("v2", {json.dumps(dome["label"])})')
+                for k in range(8):
+                    pg.mouse.move(pd['x'] + (k % 2), pd['y'], steps=2)
+                    pg.wait_for_timeout(120)
+                wd = [{'w': w, 'start': 0.15 + 0.3 * i, 'end': 0.4 + 0.3 * i} for i, w in enumerate('these domes should be bigger and greener'.split())]
+                rd = pg.evaluate(f'{T}.injectUtterance({json.dumps(wd)}, "these domes should be bigger and greener", 2400)')
+                check('V2 arrival: pointing + "these domes" tracks the biosphere dome', (rd['focus'] or {}).get('label') == dome['label'] and (rd['focus'] or {}).get('candidate') == 'v2', json.dumps(rd['focus']))
+                pg.wait_for_timeout(200)
+                pg.screenshot(path=str(shots / '06-arrival-v2-dome-focus.png'))
+                pg.keyboard.press('Escape')
             errs = [l for l in logs if 'PAGEERROR' in l]
             check('no page errors', not errs, '; '.join(errs)[:300])
             br.close()
@@ -241,7 +257,7 @@ def main():
             check('POST without x-ripple header is refused', e.code == 403)
         types = dict(db.execute('SELECT event_type, count(*) FROM events GROUP BY event_type').fetchall())
         check('event types stored', all(t in types for t in ('capture_open', 'annotation_delta', 'annotation_undo', 'decision_pick', 'utterance', 'object_focus')), json.dumps(types))
-        tmpfiles = list((tmp / 'data' / 'tmp').glob('*'))
+        tmpfiles = [p for p in (tmp / 'data').rglob('*') if p.suffix in ('.webm', '.wav', '.ogg', '.mp4', '.opus')]
         check('no audio retained on disk after transcription', not tmpfiles, str(tmpfiles[:3]))
     finally:
         srv.send_signal(signal.SIGTERM)

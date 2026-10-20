@@ -53,6 +53,14 @@ Expo Go cannot see `MotionEvent.TOOL_TYPE_STYLUS`. The JS contract is closed; we
 
 This package does **not** dock itself. On the S25, Expo Go ignores `softwareKeyboardLayoutMode: resize`. Host in Dash `KeyboardDock`. Do not add `paddingBottom: insets.bottom` here.
 
+## Visual review (desktop / Dash WebView)
+
+Pick between candidate images, draw on them and talk; the surface tracks which object you mean through per-image object-ID masks and emits Ripple events (`annotation`, `gate`, `declare`) to a local store. Ideas credited to Kit Langton's Scrawl. See [docs/visual-review.md](docs/visual-review.md).
+
+```bash
+bin/ripple-review /abs/session-dir   # 127.0.0.1 only
+```
+
 ## Develop
 
 ```bash

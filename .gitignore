@@ -5,3 +5,9 @@ dist/
 .DS_Store
 .bun/
 coverage/
+__pycache__/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+session/
+*.ids.bin

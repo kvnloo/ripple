@@ -36,8 +36,15 @@ ALIASES = {
 }
 
 
-def newest(pattern_dir: Path, name: str) -> Path | None:
-    hits = sorted(pattern_dir.glob(f'**/{name}'), key=lambda p: p.stat().st_mtime)
+def newest(pattern_dir: Path, name: str, final_glob: str | None = None, hour: str = 'h10') -> Path | None:
+    """Lane final (finals/*_<cam>_h10.png) if one exists, else the newest pass preview at the
+    same hour as CURRENT (golden-hour h17 previews would confound the comparison)."""
+    if final_glob:
+        finals = sorted((pattern_dir / 'finals').glob(final_glob), key=lambda p: p.stat().st_mtime)
+        if finals:
+            return finals[-1]
+    hits = [p for p in pattern_dir.glob(f'**/{name}') if '/h17/' not in str(p) and '/finals/' not in str(p)]
+    hits.sort(key=lambda p: p.stat().st_mtime)
     return hits[-1] if hits else None
 
 
@@ -138,12 +145,13 @@ def main():
     labeler = load_labeler(Path(a.labels))
     idm = Path(a.idmask)
 
-    v2_arrival = newest(ARCH, 'CAM_Campus_Arrival.png')
-    v2_aerial = newest(ARCH, 'CAM_Campus_Aerial.png')
-    v2_aerial_alt = newest(ARCH, 'CAM_Campus_Aerial_v2.png')
+    v2_arrival = newest(ARCH, 'CAM_Campus_Arrival.png', '*_ace_campus_arrival_h10.png')
+    v2_aerial = newest(ARCH, 'CAM_Campus_Aerial.png', '*_ace_campus_aerial_h10.png')
+    v2_aerial_alt = newest(ARCH, 'CAM_Campus_Aerial_v2.png', '*_ace_campus_aerial_v2_h10.png')
     cur_arrival = sorted(FINALS.glob('*_ace_campus_arrival_h10.png'))[-1]
     cur_aerial = sorted(FINALS.glob('*_ace_campus_aerial_h10.png'))[-1]
-    lane_round = lambda p: f'arch-v2 {p.parent.name} (lane preview, VISION)'  # noqa: E731
+    def lane_round(p: Path) -> str:
+        return 'arch-v2 final (VISION)' if p.parent.name == 'finals' else f'arch-v2 {p.parent.name} (lane preview, VISION)'
 
     spec = [
         dict(id='arrival', title='Arrival', question='Arrival: OLD single building vs CURRENT campus vs V2 — which direction for the arrival?',

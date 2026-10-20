@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# STT: faster-whisper in ~/.local/share/ripple/stt-venv (create once:
+#   uv venv -p /usr/bin/python3 ~/.local/share/ripple/stt-venv && uv pip install -p ~/.local/share/ripple/stt-venv/bin/python faster-whisper==1.2.1 av==18.1.0)
+# One command: rebuild the ACE review manifest from disk (fresh pointers, hashes,
+# ID masks), build the surface, and serve it on 127.0.0.1.
+#   bin/ripple-review [session_dir] [--port N] [--no-whisper]
+set -euo pipefail
+HERE=$(cd "$(dirname "$0")/.." && pwd)
+SESSION=${1:?usage: bin/ripple-review /abs/session-dir [--port N] [--no-whisper]}
+shift || true
+cd "$HERE"
+# Private paths live next to the session, never in git: $SESSION/../ripple.env may set
+# RIPPLE_ACE_RUN, RIPPLE_IDMASK, RIPPLE_LABELS, RIPPLE_PYTHON.
+[ -f "$SESSION/../ripple.env" ] && set -a && . "$SESSION/../ripple.env" && set +a
+if [ -n "${RIPPLE_ACE_RUN:-}" ]; then
+  env -u PYTHONPATH /usr/bin/python3 tools/ace/build_ace_manifest.py --session "$SESSION"
+else
+  echo "RIPPLE_ACE_RUN unset: serving the existing $SESSION/manifest.json" >&2
+fi
+bun build web/app.ts --outdir web/dist --target browser --minify-whitespace >/dev/null
+exec bun server/serve.ts --session "$SESSION" "$@"

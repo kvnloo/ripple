@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { describeIntent, type FastControl, initialState, intentText, parseFastControl, parseIntent, step, type ControlInput } from './index.js'
+import { describeIntent, type FastControl, type Intent, initialState, intentText, parseFastControl, parseIntent, step, type ControlInput } from './index.js'
 import vectors from './vectors.json'
 
 type Vectors = {
@@ -56,7 +56,7 @@ describe('answer vectors', () => {
       if (c.dismiss) {
         expect(outcome).toEqual({ kind: 'dismiss' })
       } else if (c.intent) {
-        expect(outcome).toEqual({ intent: { ...c.intent, surface: 'test' }, kind: 'answer' })
+        expect(outcome).toEqual({ intent: { ...(c.intent as unknown as Intent), surface: 'test' }, kind: 'answer' })
         expect(parseIntent(outcome?.kind === 'answer' ? outcome.intent : null)).not.toBeNull()
       } else {
         expect(outcome).toBeUndefined()

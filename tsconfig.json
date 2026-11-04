@@ -9,5 +9,6 @@
     "skipLibCheck": true,
     "types": ["bun"]
   },
-  "include": ["src", "web", "server"]
+  "include": ["src", "web", "server"],
+  "exclude": ["src/native"]
 }

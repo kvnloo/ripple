@@ -59,6 +59,7 @@ Pick between candidate images, draw on them and talk; the surface tracks which o
 
 ```bash
 bin/ripple-review /abs/session-dir   # 127.0.0.1 only
+bin/ripple-review /abs/session-dir --host $(tailscale ip -4)   # Dash: open DASH-LINK.txt's link in Dash's stage (token-gated)
 bin/ripple-cards /abs/session-dir ask --cards gmail:inbox   # agent: show ephemeral-ui cards inside Ripple
 ```
 

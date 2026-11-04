@@ -3,7 +3,8 @@
 #   uv venv -p /usr/bin/python3 ~/.local/share/ripple/stt-venv && uv pip install -p ~/.local/share/ripple/stt-venv/bin/python faster-whisper==1.2.1 av==18.1.0)
 # One command: rebuild the ACE review manifest from disk (fresh pointers, hashes,
 # ID masks), build the surface, and serve it on 127.0.0.1.
-#   bin/ripple-review [session_dir] [--port N] [--no-whisper]
+#   bin/ripple-review [session_dir] [--port N] [--no-whisper] [--host <tailnet ip>]
+# --host: serve on the tailnet for Dash's stage (token-gated; link in <session>/DASH-LINK.txt).
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")/.." && pwd)
 SESSION=${1:?usage: bin/ripple-review /abs/session-dir [--port N] [--no-whisper]}

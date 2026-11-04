@@ -1,7 +1,12 @@
 /**
  * Ripple visual-review local server. Loopback only; no outbound network.
  *
- *   bun server/serve.ts --session /abs/session-dir [--port 43251]
+ *   bun server/serve.ts --session /abs/session-dir [--port 43251] [--host 100.x.y.z]
+ *
+ * Loopback by default (no token). `--host <tailnet 100.x address>` is an explicit opt-in for
+ * Dash: every data route then needs the session's review token (bearer header, or `?t=` where
+ * a header can't be sent), and the server writes DASH-LINK.txt with the artifact-stage link
+ * Dash opens in its stage WebView (`http://100.x:port/#t=<token>`).
  *
  * Session dir (private, outside git): manifest.json, media/, data/ripple.sqlite,
  * data/events.jsonl (export the agent loop reads), agent-queue.jsonl (notes),
@@ -9,7 +14,7 @@
  */
 import { Database } from 'bun:sqlite';
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, normalize, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -32,6 +37,29 @@ const DATA = join(SESSION, 'data');
 mkdirSync(join(DATA, 'tmp'), { recursive: true }); // uploaded audio only, deleted after each request
 mkdirSync(join(DATA, 'worker-tmp'), { recursive: true }); // library scratch of the STT worker
 const NO_WHISPER = args.includes('--no-whisper');
+const HOST = arg('--host', process.env.RIPPLE_HOST ?? '127.0.0.1')!;
+const LOOPBACK = HOST === '127.0.0.1' || HOST === 'localhost';
+const TAILNET = /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}$/.test(HOST);
+if (!LOOPBACK && !TAILNET) {
+  console.error(`refusing to bind ${HOST}: loopback or a tailnet 100.64/10 address only`);
+  process.exit(2);
+}
+// Review token: tailnet mode only. Fresh per server start unless RIPPLE_TOKEN is set; 0600 on disk.
+const TOKEN = LOOPBACK ? '' : (process.env.RIPPLE_TOKEN ?? randomBytes(16).toString('hex'));
+if (TOKEN && !/^[a-f0-9]{16,64}$/.test(TOKEN)) {
+  console.error('RIPPLE_TOKEN must be 16-64 lowercase hex chars (Dash stage links require it)');
+  process.exit(2);
+}
+if (TOKEN) writeFileSync(join(SESSION, '.token'), TOKEN + '\n', { mode: 0o600 });
+const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+/** Read-only token for one card doc: the frame's URL never carries the review token. */
+const cardToken = (doc: string) => (TOKEN ? createHmac('sha256', TOKEN).update('card:' + doc).digest('hex').slice(0, 32) : '');
+function authed(req: Request, url: URL): boolean {
+  if (!TOKEN) return true;
+  const h = req.headers.get('authorization') ?? '';
+  const t = h.startsWith('Bearer ') ? h.slice(7) : (url.searchParams.get('t') ?? '');
+  return same(t, TOKEN);
+}
 const CARDS = join(SESSION, 'cards');
 mkdirSync(CARDS, { recursive: true });
 
@@ -135,7 +163,7 @@ const ct = (p: string) => CT[p.slice(p.lastIndexOf('.'))] ?? 'application/octet-
 
 function serveFile(base: string, rel: string): Response {
   const p = normalize(join(base, rel));
-  if (!p.startsWith(base + '/') || !existsSync(p)) return new Response('not found', { status: 404 });
+  if (!p.startsWith(base + '/') || !existsSync(p) || /\/\./.test(p.slice(base.length))) return new Response('not found', { status: 404 });
   return new Response(Bun.file(p), { headers: { 'content-type': ct(p), 'cache-control': 'no-store' } });
 }
 
@@ -146,7 +174,7 @@ function guard(req: Request): Response | null {
   if (req.method === 'GET') return null;
   if (req.headers.get('x-ripple') !== '1') return json({ error: 'missing x-ripple header' }, 403);
   const origin = req.headers.get('origin');
-  if (origin && !/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin)) return json({ error: 'origin' }, 403);
+  if (origin && !/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin) && origin !== `http://${HOST}:${PORT}`) return json({ error: 'origin' }, 403);
   return null;
 }
 
@@ -159,10 +187,18 @@ async function handle(req: Request): Promise<Response> {
   if (path.startsWith('/dist/')) return serveFile(join(ROOT, 'web', 'dist'), path.slice(6));
   if (path === '/favicon.ico') return new Response(null, { status: 204 });
   if (path === '/style.css') return serveFile(join(ROOT, 'web'), 'style.css');
+  // Card frames authenticate with their own per-doc token (or the review token from a host tool).
+  if (path.startsWith('/cards/') && req.method === 'GET') {
+    const doc = decodeURIComponent(path.slice(7));
+    if (TOKEN && !authed(req, url) && !same(url.searchParams.get('t') ?? '', cardToken(doc))) return json({ error: 'token' }, 401);
+    return serveCard(doc);
+  }
+  // Everything below reads or writes the session: tailnet mode needs the review token.
+  if (!authed(req, url)) return json({ error: 'token' }, 401);
   if (path === '/manifest.json') return serveFile(SESSION, 'manifest.json');
   if (path.startsWith('/media/')) return serveFile(join(SESSION, 'media'), decodeURIComponent(path.slice(7)));
   if (path === '/api/status')
-    return json({ whisper: { ready: workerReady, info: workerInfo, disabled: NO_WHISPER }, bridge: bridgeStatus(), session: SESSION, port: PORT });
+    return json({ whisper: { ready: workerReady, info: workerInfo, disabled: NO_WHISPER }, bridge: bridgeStatus(), session: SESSION, port: PORT, host: HOST, token: !!TOKEN });
   if (path === '/api/events' && req.method === 'GET') {
     const rows = db.query('SELECT body FROM events ORDER BY generation, sequence, source_device').all() as { body: string }[];
     return json(rows.map((r) => JSON.parse(r.body)));
@@ -212,7 +248,7 @@ async function handle(req: Request): Promise<Response> {
     appendFileSync(join(SESSION, 'agent-queue.jsonl'), JSON.stringify(rec) + '\n');
     return json({ queued: true, bridge: bridgeStatus() });
   }
-  if (path === '/api/cards' && req.method === 'GET') return json(listCards());
+  if (path === '/api/cards' && req.method === 'GET') return json(listCards().map((c) => (TOKEN ? { ...c, t: cardToken(c.doc) } : c)));
   if (path === '/api/cards' && req.method === 'POST') {
     // Agent push over loopback (same guard as every write). Writing a file into cards/ works too.
     const b = (await req.json().catch(() => null)) as { doc?: unknown; html?: unknown } | null;
@@ -229,7 +265,6 @@ async function handle(req: Request): Promise<Response> {
     rmSync(join(CARDS, doc), { force: true });
     return json({ removed: doc });
   }
-  if (path.startsWith('/cards/') && req.method === 'GET') return serveCard(decodeURIComponent(path.slice(7)));
   if (path === '/api/export.jsonl') {
     const p = join(DATA, 'events.jsonl');
     return new Response(existsSync(p) ? readFileSync(p) : '', { headers: { 'content-type': 'application/x-ndjson' } });
@@ -240,7 +275,7 @@ async function handle(req: Request): Promise<Response> {
 let server: ReturnType<typeof Bun.serve> | null = null;
 for (let i = 0; i < 20 && !server; i++) {
   try {
-    server = Bun.serve({ hostname: '127.0.0.1', port: PORT, fetch: handle });
+    server = Bun.serve({ hostname: HOST, port: PORT, fetch: handle });
   } catch {
     PORT++;
   }
@@ -249,5 +284,10 @@ if (!server) {
   console.error('no free port');
   process.exit(3);
 }
-writeFileSync(join(SESSION, 'URL.txt'), `http://127.0.0.1:${PORT}/\n`);
-console.log(`ripple review on http://127.0.0.1:${PORT}/  session=${SESSION}  bridge=${bridgeStatus().mode}`);
+writeFileSync(join(SESSION, 'URL.txt'), `http://${HOST}:${PORT}/\n`);
+if (TOKEN) {
+  // What Dash opens: paste the link in a chat reply (Dash shows "Open in stage") or send the deep link.
+  const link = `http://${HOST}:${PORT}/#t=${TOKEN}`;
+  writeFileSync(join(SESSION, 'DASH-LINK.txt'), `${link}\ndash://stage?url=${encodeURIComponent(link)}\n`, { mode: 0o600 });
+}
+console.log(`ripple review on http://${HOST}:${PORT}/  session=${SESSION}  bridge=${bridgeStatus().mode}${TOKEN ? `  token in ${join(SESSION, '.token')}, Dash link in DASH-LINK.txt` : ''}`);

@@ -72,9 +72,22 @@ Limits: the inline "Agent: …" reply line under a card is the card's own script
 
 A candidate may ship `ids.bin` (uint32 LE, row-major, top-down; 0 = background) rendered from the same camera, plus a legend `{id, object, label, building, part, building_synonyms, part_synonyms, area}`. For ACE these come from `gfx/blender/scripts/render_idmask.py` in the (private) ACE twin repo: a Cycles 1 spp emission pass whose R channel is the object pass index (EXR float, exact). Images without a mask still work; the surface says "no ID mask (speech only)" and never invents objects.
 
-## Mounting in Dash
+## Opening it in Dash
 
-Dash (kvnloo/dash) is Expo Go: no native modules, so this slice mounts as a **WebView route** pointing at the loopback server through the Dash bridge's tailnet address, e.g. a `review` screen that opens `http://<laptop-tailnet-ip>:43251/` once the bridge forwards it with the Dash token. Until that forward exists (it needs the bridge's auth, kvnloo/.files#26 pairing), use the desktop browser. The React Native `IntentSurface` mount described in README stays the chat/composer path; visual review is a sibling surface fed by the same events.
+Dash already has an artifact-stage screen: a chat reply containing `http://100.x.y.z:<port>/#t=<hex token>` shows an **Open in stage** pill, and `dash://stage?url=<encoded link>` opens it directly. Ripple speaks that link format in tailnet mode:
+
+```bash
+bin/ripple-review /abs/session-dir --host 100.113.138.100   # this host's tailnet IPv4 (tailscale ip -4)
+cat /abs/session-dir/DASH-LINK.txt                          # line 1: stage link for a chat reply · line 2: dash:// deep link
+```
+
+- `--host` accepts loopback or a tailnet `100.64/10` address only. In tailnet mode the server binds only that address, writes a fresh review token to `<session>/.token` (0600; `RIPPLE_TOKEN` pins one) and requires it on every data route. The page shell (`/`, `/dist/`, `/style.css`) is public.
+- The token travels in the URL fragment, is moved to sessionStorage and out of the address bar, and goes out as a bearer header (`web/auth.ts`); images use `?t=` because they can't carry headers. Card frames get a per-document token (HMAC of the review token) that opens only that document.
+- Events recorded from Dash come from a `dash-…` device (`?channel=dash`, which Dash's stage adds).
+- Plain http on the tailnet is not a secure context, so the WebView hides the microphone: the pill says `mic: needs https`. Ink, picks, typed notes and agent cards work; talk from the desktop.
+- Proof: `tests/browser/dash.py --session DIR --host <tailnet ip> --shots OUT` (token gate + phone-size Chromium through the exact stage URL), and on the real Dash native app on the S22 (receipts under the session's ops folder).
+
+The React Native `IntentSurface` mount described in README stays the chat/composer path; visual review is a sibling surface fed by the same events.
 
 ## Agent side
 
@@ -86,4 +99,5 @@ Confirmed notes append one JSON line to `<session>/agent-queue.jsonl` (`line`, `
 bun test src                                    # unit: transforms, events, replay, masks, fusion, restatement
 python3 tests/browser/smoke.py --session DIR --shots OUT [--wav speech.wav]   # real Chromium + real server
 RIPPLE_EUI=<kit> python3 tests/browser/cards.py --session DIR --shots OUT       # hosted ephemeral-ui cards
+RIPPLE_EUI=<kit> python3 tests/browser/dash.py --session DIR --host <tailnet ip> --shots OUT   # Dash stage mode
 ```

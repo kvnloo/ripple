@@ -11,6 +11,7 @@ import { IdMask, type LegendEntry } from '../src/review/mask';
 import { fuse, liveFocus, type CandidateInfo, type FusionResult, type PointerSample, type StrokeEvidence } from '../src/review/fusion';
 import { restate } from '../src/review/restate';
 import { parsePointer, widthFor } from '../src/review/stylus';
+import { initToken, stored, withT } from './auth';
 import { cardIntentLine, cardIntentPayload, parseEuiMessage, type CardDoc, type ReviewContext } from '../src/review/cards';
 
 // ---------------- types ----------------
@@ -55,8 +56,10 @@ type ToolMode = Tool | 'eraser' | 'pan';
 // ---------------- state ----------------
 const $ = <T extends HTMLElement>(s: string) => document.querySelector(s) as T;
 const now = () => performance.timeOrigin + performance.now();
-const DEVICE = localStorage.getItem('ripple.device') ?? `desktop-${Math.random().toString(36).slice(2, 8)}`;
-localStorage.setItem('ripple.device', DEVICE);
+initToken();
+/** Opened from Dash's stage (artifact-stage link): decisions are recorded with that channel. */
+const CHANNEL = new URLSearchParams(location.search).get('channel') === 'dash' ? 'dash' : 'desktop';
+const DEVICE = stored(`ripple.device.${CHANNEL}`, () => `${CHANNEL}-${Math.random().toString(36).slice(2, 8)}`);
 
 let M: Manifest;
 let seq: Sequencer;
@@ -148,7 +151,7 @@ async function load() {
   for (const c of M.cards)
     for (const cand of c.candidates) {
       const img = new Image();
-      img.src = '/' + cand.image;
+      img.src = withT('/' + cand.image);
       img.onload = () => render();
       images.set(capId(c, cand), img);
       if (cand.mask) loadMask(c, cand);
@@ -161,6 +164,8 @@ async function load() {
       setPill('#bridge-pill', s.bridge.enabled ? 'agent: Hermes API' : 'agent: queue file', 'dim');
       $('#bridge-pill').title = s.bridge.reason;
       if (!s.whisper.ready) setPill('#mic-pill', s.whisper.disabled ? 'stt disabled' : 'stt loading…', 'busy');
+      // Plain-http tailnet (Dash stage) is not a secure context: the browser hides the microphone.
+      if (!window.isSecureContext) setPill('#mic-pill', 'mic: needs https', 'dim'), ($('#mic-pill').title = 'Opened over plain http on the tailnet: browsers only allow the microphone on https or localhost. Draw, pick, type and use cards; talk from the desktop.');
     });
   buildQueue();
   openCard(0);
@@ -194,7 +199,7 @@ function buildQueue() {
     const pick = st.picks.get(c.id);
     const pickTxt = pick ? (pick.pick === '=' ? 'tie' : candLabel(c, pick.pick)) : 'pending';
     d.innerHTML = `<div class="t">${esc(c.title)}</div><div class="s">${c.candidates.map((x) => esc(x.label)).join(' · ')}</div>
-      <div class="thumbs">${c.candidates.map((x) => `<img src="/${x.image}" alt="">`).join('')}</div>
+      <div class="thumbs">${c.candidates.map((x) => `<img src="${withT('/' + x.image)}" alt="">`).join('')}</div>
       <div class="s">pick: <span class="${pick ? 'picked' : ''}">${esc(pickTxt)}</span></div>`;
     d.onclick = () => openCard(i);
     q.appendChild(d);
@@ -937,6 +942,9 @@ function reviewContext(): ReviewContext {
   return { card_id: c?.id ?? null, card_title: c?.title ?? null, candidate_id: hover?.cand ?? st?.pick ?? null, pick: st?.pick ?? null, focus: focusOverride ?? liveLabel ?? hover?.label ?? null };
 }
 
+/** Card frames get their own per-doc token (tailnet mode), never the review token. */
+const cardSrc = (info: CardDoc & { t?: string }) => `/cards/${encodeURIComponent(info.doc)}?v=${info.mtime}${info.t ? `&t=${info.t}` : ''}`;
+
 function mountDoc(info: CardDoc) {
   const status = Object.assign(document.createElement('span'), { className: 'rc-st', textContent: 'loading…' });
   const fold = Object.assign(document.createElement('button'), { textContent: '–', title: 'Fold' });
@@ -948,7 +956,7 @@ function mountDoc(info: CardDoc) {
   frame.setAttribute('sandbox', 'allow-scripts');
   frame.setAttribute('referrerpolicy', 'no-referrer');
   frame.title = info.title;
-  frame.src = `/cards/${encodeURIComponent(info.doc)}?v=${info.mtime}`;
+  frame.src = cardSrc(info);
   const last = Object.assign(document.createElement('div'), { className: 'rc-last' });
   const el = document.createElement('section');
   el.className = 'rc-doc';
@@ -990,7 +998,7 @@ async function syncCards() {
       cur.ready = null;
       cur.status.textContent = 'reloading…';
       cur.status.className = 'rc-st';
-      cur.frame.src = `/cards/${encodeURIComponent(info.doc)}?v=${info.mtime}`;
+      cur.frame.src = cardSrc(info);
     } else mountDoc(info);
     fresh = info;
     hosted.get(info.doc)!.el.classList.add('fresh');

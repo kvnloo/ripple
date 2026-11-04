@@ -103,6 +103,7 @@ body.cards-open main { grid-template-columns: 230px 1fr minmax(320px, 420px); }
   #top .status { margin-left: auto; }
   #top .status .pill { white-space: nowrap; }
   #store-pill, #bridge-pill { display: none; }
+  .pane .stamp { bottom: 24px; max-width: calc(100% - 16px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   main { grid-template-columns: 1fr; }
   #queue { display: none; }

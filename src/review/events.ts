@@ -9,11 +9,13 @@
  * Event types: the issue's capture_open | annotation_delta | annotation_undo |
  * annotation_commit | capture_close | handoff, plus three this surface needs:
  * decision_pick (option selector), utterance (speech + restatement) and
- * object_focus (what the owner is talking about). Every event also names the
+ * object_focus (what the owner is talking about), and card_intent (the owner acted
+ * inside a hosted ephemeral-ui card; see cards.ts). Every event also names the
  * Ripple intent action it records: annotation | gate | declare.
  *
  * Coordinates in payloads are SOURCE-normalized (see geometry.ts).
  */
+import { isDocName, LIMITS } from './cards';
 import { parseCropTransform, type CropTransform, type Pt } from './geometry';
 
 export const SCHEMA_VERSION = 'ripple.review/v1';
@@ -28,6 +30,7 @@ export const EVENT_TYPES = [
   'decision_pick',
   'utterance',
   'object_focus',
+  'card_intent',
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -44,6 +47,7 @@ export const ACTION_OF: Record<EventType, IntentAction | null> = {
   decision_pick: 'gate',
   utterance: 'declare',
   object_focus: 'declare',
+  card_intent: 'declare',
 };
 
 export type Tool = 'pen' | 'arrow' | 'ellipse' | 'box' | 'text' | 'pin';
@@ -183,6 +187,14 @@ export function parseEnvelope(raw: unknown): { ok: true; event: Envelope } | { o
   if (et === 'utterance') {
     if (!isStr(p.utterance_id) || typeof p.text !== 'string' || (p.text as string).length > MAX_TEXT) return { ok: false, error: 'utterance' };
     if (!Array.isArray(p.words) || (p.words as unknown[]).length > 2000) return { ok: false, error: 'utterance.words' };
+  }
+  if (et === 'card_intent') {
+    // Only the owner acts inside a card; an agent cannot forge one. Never an approval.
+    if (r.origin !== 'user') return { ok: false, error: 'card_intent origin' };
+    if (!isDocName(p.doc) || !isStr(p.kind) || !isStr(p.app) || !isStr(p.eui_action)) return { ok: false, error: 'card_intent' };
+    if (typeof p.label !== 'string' || (p.label as string).length > LIMITS.label) return { ok: false, error: 'card_intent.label' };
+    if (!Array.isArray(p.ids) || (p.ids as unknown[]).length > LIMITS.ids || !(p.ids as unknown[]).every((x) => typeof x === 'string' && x.length <= 200)) return { ok: false, error: 'card_intent.ids' };
+    if (p.authority !== 'none') return { ok: false, error: 'card_intent.authority' };
   }
   const dims = r.dimensions as Record<string, unknown> | null | undefined;
   const event: Envelope = {

@@ -14,6 +14,7 @@
     <span id="mic-pill" class="pill" title="Microphone state. Only opened while you hold Space or the mic button; audio is transcribed on this machine and deleted.">mic off</span>
     <span id="store-pill" class="pill" title="Events stored locally in SQLite">store …</span>
     <span id="bridge-pill" class="pill dim" title="Hermes API bridge">agent: queue file</span>
+    <button id="cards-btn" class="pill" aria-expanded="false" aria-controls="cards" title="Cards the agent sent (ephemeral-ui). What you do in them is queued for the agent. (C)">▦ cards <b id="cards-n">0</b></button>
   </div>
 </header>
 <main>
@@ -35,6 +36,11 @@
     <div id="panes"></div>
     <div id="cardnote"></div>
   </section>
+  <aside id="cards" aria-label="Agent cards (ephemeral-ui)" hidden>
+    <div class="cards-head"><div class="cards-row"><b>Agent cards</b><button id="cards-close" title="Close (C)">Close</button></div><span class="dim">ephemeral-ui · sandboxed, no network · actions queue for the agent, never approve</span></div>
+    <div id="cards-list"></div>
+    <p id="cards-empty" class="dim">No cards yet. The agent exports them into <code>&lt;session&gt;/cards/</code> (<code>bin/ripple-cards</code>).</p>
+  </aside>
 </main>
 <footer id="bottom">
   <div id="tools" role="toolbar" aria-label="Ink tools">

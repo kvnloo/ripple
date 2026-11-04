@@ -4,13 +4,16 @@
  *   bun server/serve.ts --session /abs/session-dir [--port 43251]
  *
  * Session dir (private, outside git): manifest.json, media/, data/ripple.sqlite,
- * data/events.jsonl (export the agent loop reads), agent-queue.jsonl (notes).
+ * data/events.jsonl (export the agent loop reads), agent-queue.jsonl (notes),
+ * cards/*.html (ephemeral-ui exports the agent sends; shown sandboxed, see src/review/cards.ts).
  */
 import { Database } from 'bun:sqlite';
 import { spawn } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, normalize, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
+import { CARD_CSP, docTitle, isDocName, LIMITS, withSizeReporter, type CardDoc } from '../src/review/cards';
 import { eventKey, parseEnvelope } from '../src/review/events';
 import { bridgeStatus } from './hermes-bridge';
 
@@ -29,6 +32,36 @@ const DATA = join(SESSION, 'data');
 mkdirSync(join(DATA, 'tmp'), { recursive: true }); // uploaded audio only, deleted after each request
 mkdirSync(join(DATA, 'worker-tmp'), { recursive: true }); // library scratch of the STT worker
 const NO_WHISPER = args.includes('--no-whisper');
+const CARDS = join(SESSION, 'cards');
+mkdirSync(CARDS, { recursive: true });
+
+// ---------- hosted ephemeral-ui cards ----------
+const docCache = new Map<string, { mtime: number; size: number; info: CardDoc }>();
+function listCards(): CardDoc[] {
+  const out: CardDoc[] = [];
+  for (const f of readdirSync(CARDS)) {
+    if (!isDocName(f)) continue;
+    const st = statSync(join(CARDS, f));
+    if (!st.isFile() || st.size > LIMITS.html) continue;
+    const hit = docCache.get(f);
+    if (hit && hit.mtime === st.mtimeMs && hit.size === st.size) {
+      out.push(hit.info);
+      continue;
+    }
+    const buf = readFileSync(join(CARDS, f));
+    const info: CardDoc = { doc: f, title: docTitle(buf.subarray(0, 4096).toString('utf8'), f.replace(/\.html$/, '')), bytes: st.size, mtime: Math.round(st.mtimeMs), sha256: createHash('sha256').update(buf).digest('hex') };
+    docCache.set(f, { mtime: st.mtimeMs, size: st.size, info });
+    out.push(info);
+  }
+  return out.sort((a, b) => a.mtime - b.mtime || (a.doc < b.doc ? -1 : 1));
+}
+function serveCard(doc: string): Response {
+  if (!isDocName(doc) || !existsSync(join(CARDS, doc))) return new Response('not found', { status: 404 });
+  const html = withSizeReporter(readFileSync(join(CARDS, doc), 'utf8'));
+  return new Response(html, {
+    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': CARD_CSP, 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' },
+  });
+}
 
 // ---------- store ----------
 const db = new Database(join(DATA, 'ripple.sqlite'));
@@ -124,6 +157,7 @@ async function handle(req: Request): Promise<Response> {
   const path = url.pathname;
   if (path === '/' || path === '/index.html') return serveFile(join(ROOT, 'web'), 'index.html');
   if (path.startsWith('/dist/')) return serveFile(join(ROOT, 'web', 'dist'), path.slice(6));
+  if (path === '/favicon.ico') return new Response(null, { status: 204 });
   if (path === '/style.css') return serveFile(join(ROOT, 'web'), 'style.css');
   if (path === '/manifest.json') return serveFile(SESSION, 'manifest.json');
   if (path.startsWith('/media/')) return serveFile(join(SESSION, 'media'), decodeURIComponent(path.slice(7)));
@@ -178,6 +212,24 @@ async function handle(req: Request): Promise<Response> {
     appendFileSync(join(SESSION, 'agent-queue.jsonl'), JSON.stringify(rec) + '\n');
     return json({ queued: true, bridge: bridgeStatus() });
   }
+  if (path === '/api/cards' && req.method === 'GET') return json(listCards());
+  if (path === '/api/cards' && req.method === 'POST') {
+    // Agent push over loopback (same guard as every write). Writing a file into cards/ works too.
+    const b = (await req.json().catch(() => null)) as { doc?: unknown; html?: unknown } | null;
+    if (!b || !isDocName(b.doc) || typeof b.html !== 'string') return json({ error: 'doc (name.html) and html required' }, 400);
+    if (Buffer.byteLength(b.html) > LIMITS.html) return json({ error: 'html too large' }, 413);
+    const tmp = join(CARDS, `.${b.doc}.${process.pid}.tmp`);
+    writeFileSync(tmp, b.html);
+    renameSync(tmp, join(CARDS, b.doc));
+    return json({ stored: listCards().find((c) => c.doc === b.doc) });
+  }
+  if (path === '/api/cards' && req.method === 'DELETE') {
+    const doc = url.searchParams.get('doc');
+    if (!isDocName(doc)) return json({ error: 'doc' }, 400);
+    rmSync(join(CARDS, doc), { force: true });
+    return json({ removed: doc });
+  }
+  if (path.startsWith('/cards/') && req.method === 'GET') return serveCard(decodeURIComponent(path.slice(7)));
   if (path === '/api/export.jsonl') {
     const p = join(DATA, 'events.jsonl');
     return new Response(existsSync(p) ? readFileSync(p) : '', { headers: { 'content-type': 'application/x-ndjson' } });

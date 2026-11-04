@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Send ephemeral-ui cards into a running (or future) Ripple review session.
+#
+#   bin/ripple-cards SESSION NAME --cards app:kind,...  [--title T] [--theme ID] [export-cards args]
+#   bin/ripple-cards SESSION NAME --playlist '<kit url with #pl=…>'
+#   bin/ripple-cards SESSION NAME --file cards.html      # an export you already built
+#   bin/ripple-cards SESSION --rm NAME
+#
+# Exports go through the kit's own tools/export-cards.mjs (real card modules, embedded data, no
+# network) into SESSION/cards/NAME.html; the open surface picks them up within ~3 s.
+# Kit path: RIPPLE_EUI (env or SESSION/../ripple.env), the ephemeral-ui checkout root.
+set -euo pipefail
+SESSION=${1:?usage: bin/ripple-cards SESSION NAME (--cards …|--playlist …|--file …) | SESSION --rm NAME}
+shift
+[ -f "$SESSION/../ripple.env" ] && set -a && . "$SESSION/../ripple.env" && set +a
+mkdir -p "$SESSION/cards"
+if [ "${1:-}" = "--rm" ]; then
+  rm -f "$SESSION/cards/${2:?name}.html"; echo "removed ${2}.html"; exit 0
+fi
+NAME=${1:?name}; shift
+[[ "$NAME" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,90}$ ]] || { echo "bad name: $NAME (letters, digits, _ . -)" >&2; exit 2; }
+OUT="$SESSION/cards/$NAME.html"
+TMP="$SESSION/cards/.$NAME.$$.tmp"
+if [ "${1:-}" = "--file" ]; then
+  cp "${2:?file}" "$TMP"
+else
+  EUI=${RIPPLE_EUI:?set RIPPLE_EUI to the ephemeral-ui checkout (env or SESSION/../ripple.env)}
+  args=("$@")
+  printf '%s\n' "${args[@]}" | grep -qx -- '--theme' || args+=(--theme hermes-slate)  # closest kit theme to Ripple's own dark
+  # Ripple frames are file-based: allow up to 2 MB (the server's cap) instead of T3's 512 KB.
+  printf '%s\n' "${args[@]}" | grep -qx -- '--max-bytes' || args+=(--max-bytes 2000000)
+  if [ -z "${ESBUILD:-}" ] && ! command -v esbuild >/dev/null; then
+    for c in "$EUI/tools/node_modules/.bin/esbuild" "$EUI/node_modules/.bin/esbuild"; do [ -x "$c" ] && export ESBUILD=$c && break; done
+  fi
+  node "$EUI/tools/export-cards.mjs" "${args[@]}" --out "$TMP" >/dev/null
+fi
+mv -f "$TMP" "$OUT"
+echo "$OUT $(stat -c %s "$OUT") bytes sha256 $(sha256sum "$OUT" | cut -c1-64)"

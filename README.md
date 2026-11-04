@@ -59,7 +59,10 @@ Pick between candidate images, draw on them and talk; the surface tracks which o
 
 ```bash
 bin/ripple-review /abs/session-dir   # 127.0.0.1 only
+bin/ripple-cards /abs/session-dir ask --cards gmail:inbox   # agent: show ephemeral-ui cards inside Ripple
 ```
+
+Agent-sent [ephemeral-ui](https://kvnloo.github.io/ephemeral-ui/) cards run sandboxed in a drawer beside the review; what the owner does in them is queued for the agent as `card_intent` with the review context. See [docs/visual-review.md#agent-cards-ephemeral-ui-inside-ripple](docs/visual-review.md#agent-cards-ephemeral-ui-inside-ripple).
 
 ## Develop
 

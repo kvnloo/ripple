@@ -38,9 +38,35 @@ Private paths (ACE run dir, ID-mask dir, labeler) come from `<session>/../ripple
 - `src/review/fusion.ts` — speech → object binding (mentions, deixis at word time, pointer dwell, strokes, candidate aliases).
 - `src/review/restate.ts` — one structured line per note.
 - `src/review/stylus.ts` — pointer/S-Pen event contract (`hover down move up erase`).
+- `src/review/cards.ts` — hosted ephemeral-ui cards: frame message parser, `card_intent` payload, queue line, served-document CSP.
 - `web/` — desktop surface (vanilla TS, no framework); `server/` — Bun loopback server, SQLite store, faster-whisper worker, Hermes bridge (OFF).
 
 The core in `src/review` has no DOM or React dependency so a React Native `IntentSurface` child can reuse it in Dash.
+
+## Agent cards (ephemeral-ui inside Ripple)
+
+The agent can put interactive [ephemeral-ui](https://kvnloo.github.io/ephemeral-ui/) cards beside the review: a question with options, an inbox pick, an intent declaration. They open in a drawer on the right (phone: a full-screen overlay; header **▦ cards** button or `C`).
+
+```bash
+# real kit cards, exported by the kit's own tools/export-cards.mjs (RIPPLE_EUI = kit checkout, env or ../ripple.env)
+bin/ripple-cards /abs/session-dir mail --cards gmail:inbox,ripple:intent-declare --title "Which invoice?"
+bin/ripple-cards /abs/session-dir picks --playlist 'https://kvnloo.github.io/ephemeral-ui/#pl=…'
+bin/ripple-cards /abs/session-dir mine --file cards.html          # an export you built yourself
+bin/ripple-cards /abs/session-dir --rm mail
+# or push over loopback: POST /api/cards {doc:"name.html", html} with header x-ripple: 1
+```
+
+The open surface polls `GET /api/cards` every 3 s: a new or replaced document appears without a reload and the header pill turns yellow if the drawer is closed.
+
+What happens when the owner acts inside a card:
+
+1. The kit card mirrors `eui:intent` (`{kind, app, action, label, ids:["type:id"…], entities}`) to its parent frame (kit `loop.js`).
+2. Ripple accepts it only from a frame it created (`event.source`), parses it at the boundary (`src/review/cards.ts`), and adds the review context it happened in: review card, candidate under the pointer or picked, focused object.
+3. It records a `card_intent` event (action `declare`) in the store and appends one line to `agent-queue.jsonl` (`source: "ephemeral-ui"`, e.g. `card gmail/inbox · select: Use "Invoice 4471" [message:m4471] · on Arrival/new (dome roof)`), next to spoken notes.
+
+Isolation: each document runs in `iframe sandbox="allow-scripts"` (opaque origin: no cookies, storage or parent DOM) and is served with a no-network CSP (`connect-src 'none'`, no remote styles/fonts/images). A card cannot call Ripple's API (the write guard refuses `Origin: null`). `card_intent` payloads always carry `authority: "none"`; the server refuses agent-origin or approving ones. A card's Approve/Pay/Sign button is context for the agent, never an approval. Ripple appends a small script to each served export that reports its height, because the parent cannot measure an opaque-origin frame.
+
+Limits: the inline "Agent: …" reply line under a card is the card's own scripted acknowledgement (kit `tell(ack)`), not a reply from the real agent; the real agent sees the queue line. Card intents don't feed back into speech fusion yet.
 
 ## Object-ID masks
 
@@ -59,4 +85,5 @@ Confirmed notes append one JSON line to `<session>/agent-queue.jsonl` (`line`, `
 ```bash
 bun test src                                    # unit: transforms, events, replay, masks, fusion, restatement
 python3 tests/browser/smoke.py --session DIR --shots OUT [--wav speech.wav]   # real Chromium + real server
+RIPPLE_EUI=<kit> python3 tests/browser/cards.py --session DIR --shots OUT       # hosted ephemeral-ui cards
 ```

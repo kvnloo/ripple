@@ -11,6 +11,7 @@ import { IdMask, type LegendEntry } from '../src/review/mask';
 import { fuse, liveFocus, type CandidateInfo, type FusionResult, type PointerSample, type StrokeEvidence } from '../src/review/fusion';
 import { restate } from '../src/review/restate';
 import { parsePointer, widthFor } from '../src/review/stylus';
+import { cardIntentLine, cardIntentPayload, parseEuiMessage, type CardDoc, type ReviewContext } from '../src/review/cards';
 
 // ---------------- types ----------------
 interface MaskRef {
@@ -163,6 +164,7 @@ async function load() {
     });
   buildQueue();
   openCard(0);
+  void syncCards();
 }
 
 async function loadMask(c: Card, cand: Candidate) {
@@ -908,6 +910,143 @@ function discardDraft() {
   render();
 }
 
+// ---------------- hosted ephemeral-ui cards ----------------
+// Agent-sent exports run in sandbox="allow-scripts" frames (opaque origin: no cookies, no storage,
+// no same-origin API calls; the server adds a no-network CSP). The only channel out is postMessage,
+// and only from a frame we created. What the owner does in a card becomes a `card_intent` event
+// plus an agent-queue line carrying the review context it happened in.
+interface Hosted { info: CardDoc; el: HTMLElement; frame: HTMLIFrameElement; status: HTMLElement; last: HTMLElement; ready: { cards: number; failed: number } | null; intents: number }
+const hosted = new Map<string, Hosted>();
+let cardsOpen = false;
+let cardsLoaded = false;
+
+function setCardsOpen(open: boolean) {
+  cardsOpen = open;
+  document.body.classList.toggle('cards-open', open);
+  $('#cards').hidden = !open;
+  const b = $('#cards-btn');
+  b.classList.toggle('on', open);
+  b.classList.remove('new');
+  b.setAttribute('aria-expanded', String(open));
+  if (M) render();
+}
+
+function reviewContext(): ReviewContext {
+  const c = M ? card() : null;
+  const st = c ? state().picks.get(c.id) : null;
+  return { card_id: c?.id ?? null, card_title: c?.title ?? null, candidate_id: hover?.cand ?? st?.pick ?? null, pick: st?.pick ?? null, focus: focusOverride ?? liveLabel ?? hover?.label ?? null };
+}
+
+function mountDoc(info: CardDoc) {
+  const status = Object.assign(document.createElement('span'), { className: 'rc-st', textContent: 'loading…' });
+  const fold = Object.assign(document.createElement('button'), { textContent: '–', title: 'Fold' });
+  const close = Object.assign(document.createElement('button'), { textContent: '×', title: 'Dismiss (removes the file from cards/)' });
+  const bar = document.createElement('div');
+  bar.className = 'rc-bar';
+  bar.append(Object.assign(document.createElement('span'), { className: 'rc-t', textContent: info.title, title: `${info.doc} · sha256 ${info.sha256}` }), status, fold, close);
+  const frame = document.createElement('iframe');
+  frame.setAttribute('sandbox', 'allow-scripts');
+  frame.setAttribute('referrerpolicy', 'no-referrer');
+  frame.title = info.title;
+  frame.src = `/cards/${encodeURIComponent(info.doc)}?v=${info.mtime}`;
+  const last = Object.assign(document.createElement('div'), { className: 'rc-last' });
+  const el = document.createElement('section');
+  el.className = 'rc-doc';
+  el.dataset.doc = info.doc;
+  el.append(bar, frame, last);
+  const h: Hosted = { info, el, frame, status, last, ready: null, intents: 0 };
+  fold.onclick = () => el.classList.toggle('folded');
+  close.onclick = () => {
+    fetch(`/api/cards?doc=${encodeURIComponent(info.doc)}`, { method: 'DELETE', headers: { 'x-ripple': '1' } }).catch(() => {});
+    el.remove();
+    hosted.delete(info.doc);
+    updateCardsUi();
+  };
+  hosted.set(info.doc, h);
+  $('#cards-list').append(el);
+}
+
+function updateCardsUi() {
+  $('#cards-n').textContent = String(hosted.size);
+  $('#cards-empty').hidden = hosted.size > 0;
+}
+
+async function syncCards() {
+  let list: CardDoc[];
+  try {
+    list = await (await fetch('/api/cards')).json();
+  } catch {
+    return;
+  }
+  const seen = new Set<string>();
+  let fresh: CardDoc | null = null;
+  for (const info of list) {
+    seen.add(info.doc);
+    const cur = hosted.get(info.doc);
+    if (cur && cur.info.sha256 === info.sha256) continue;
+    if (cur) {
+      // the agent replaced the document: reload in place, keep its slot
+      cur.info = info;
+      cur.ready = null;
+      cur.status.textContent = 'reloading…';
+      cur.status.className = 'rc-st';
+      cur.frame.src = `/cards/${encodeURIComponent(info.doc)}?v=${info.mtime}`;
+    } else mountDoc(info);
+    fresh = info;
+    hosted.get(info.doc)!.el.classList.add('fresh');
+    window.setTimeout(() => hosted.get(info.doc)?.el.classList.remove('fresh'), 4000);
+  }
+  for (const [doc, h] of hosted) if (!seen.has(doc)) (h.el.remove(), hosted.delete(doc));
+  updateCardsUi();
+  if (fresh && cardsLoaded) {
+    toast(`Agent sent cards: ${fresh.title}`);
+    if (!cardsOpen) $('#cards-btn').classList.add('new');
+  }
+  if (!cardsLoaded && hosted.size && !cardsOpen) setCardsOpen(true);
+  cardsLoaded = true;
+}
+
+function onCardMessage(ev: MessageEvent) {
+  const h = [...hosted.values()].find((x) => x.frame.contentWindow === ev.source);
+  if (!h) return; // not one of our card frames: ignore (forged or unrelated)
+  const m = parseEuiMessage(ev.data);
+  if (!m) return;
+  if (m.type === 'size') h.frame.style.height = `${Math.min(m.height, 2400)}px`;
+  else if (m.type === 'ready') {
+    h.ready = { cards: m.cards, failed: m.failed };
+    h.status.textContent = m.failed ? `${m.cards} ok · ${m.failed} failed` : `${m.cards} card${m.cards === 1 ? '' : 's'} ✓`;
+    h.status.className = `rc-st ${m.failed ? 'bad' : 'ok'}`;
+  } else {
+    const payload = cardIntentPayload(h.info, m.detail, reviewContext());
+    const c = M ? card() : null;
+    const cand = payload.candidate_id ? candById(payload.candidate_id) : null;
+    const e = emit('card_intent', cand, payload);
+    const line = cardIntentLine(payload);
+    h.intents++;
+    h.last.textContent = `→ agent: ${m.detail.action} · ${m.detail.label}`;
+    fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-ripple': '1' },
+      body: JSON.stringify({
+        session_id: M.session_id,
+        note_id: `ci_${e.generation}_${e.sequence}`,
+        source: 'ephemeral-ui',
+        card_id: c?.id ?? null,
+        card_title: c?.title ?? null,
+        candidate_id: payload.candidate_id,
+        candidate_image: cand ? { path: cand.source.path, sha256: cand.source.sha256 } : null,
+        object: payload.focus ? { label: payload.focus } : null,
+        line,
+        card_intent: payload,
+        pick: payload.pick,
+      }),
+    })
+      .then((r) => r.json())
+      .then(() => toast(`Queued for the agent: ${line}`))
+      .catch(() => toast('card note queue failed (kept in local events)'));
+  }
+}
+
 // ---------------- wiring ----------------
 function inField(e: Event) {
   const t = e.target as HTMLElement;
@@ -990,6 +1129,7 @@ function wire() {
     if (tools[k]) return (tool = tools[k]), updateModeUi();
     if (modes[k]) return (mode = modes[k]), buildPanes();
     if (e.key === '0') return (view = { ...IDENTITY_VIEW }), render();
+    if (k === 'c') return setCardsOpen(!cardsOpen);
     if (e.key === ']') return openCard(Math.min(M.cards.length - 1, cardIdx + 1));
     if (e.key === '[') return openCard(Math.max(0, cardIdx - 1));
   });
@@ -997,6 +1137,10 @@ function wire() {
     if (e.code === 'Space' && talk) void stopTalk();
   });
   window.addEventListener('resize', () => render());
+  window.addEventListener('message', onCardMessage);
+  $('#cards-btn').addEventListener('click', () => setCardsOpen(!cardsOpen));
+  $('#cards-close').addEventListener('click', () => setCardsOpen(false));
+  window.setInterval(() => void syncCards(), 3000);
   window.setInterval(() => {
     if (mode === 'flicker') {
       flickerOn = !flickerOn;
@@ -1058,6 +1202,8 @@ function wire() {
     return mk ? [...mk.groups.values()].sort((a, b) => b.area - a.area).map((g) => ({ label: g.label, area: g.area, building: g.building, part: g.part })) : [];
   },
   flush: () => flush(),
+  cards: () => [...hosted.values()].map((h) => ({ doc: h.info.doc, title: h.info.title, sha256: h.info.sha256, ready: h.ready, intents: h.intents, height: h.frame.style.height || null })),
+  syncCards: () => syncCards(),
 };
 
 wire();

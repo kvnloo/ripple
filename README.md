@@ -64,6 +64,10 @@ bin/ripple-cards /abs/session-dir ask --cards gmail:inbox   # agent: show epheme
 
 Agent-sent [ephemeral-ui](https://kvnloo.github.io/ephemeral-ui/) cards run sandboxed in a drawer beside the review; what the owner does in them is queued for the agent as `card_intent` with the review context. See [docs/visual-review.md#agent-cards-ephemeral-ui-inside-ripple](docs/visual-review.md#agent-cards-ephemeral-ui-inside-ripple).
 
+## Fast controls
+
+Small questions an agent asks while it works (a choice, a slider, a confirm, a pick from candidates) share one schema and one interaction model across Dash, the web surface and Tern: [docs/fast-controls.md](docs/fast-controls.md), code in `src/fast-controls/`.
+
 ## Develop
 
 ```bash

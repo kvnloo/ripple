@@ -19,7 +19,7 @@ export interface ReviewState {
   lastGeneration: number;
 }
 
-export function emptyState(): ReviewState {
+function emptyState(): ReviewState {
   return {
     strokes: new Map(),
     picks: new Map(),

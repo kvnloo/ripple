@@ -18,9 +18,9 @@
 import { isDocName, LIMITS } from './cards';
 import { parseCropTransform, type CropTransform, type Pt } from './geometry';
 
-export const SCHEMA_VERSION = 'ripple.review/v1';
+const SCHEMA_VERSION = 'ripple.review/v1';
 
-export const EVENT_TYPES = [
+const EVENT_TYPES = [
   'capture_open',
   'annotation_delta',
   'annotation_undo',
@@ -35,9 +35,9 @@ export const EVENT_TYPES = [
 export type EventType = (typeof EVENT_TYPES)[number];
 
 /** Ripple README actions an intent object records. */
-export type IntentAction = 'annotation' | 'gate' | 'declare';
+type IntentAction = 'annotation' | 'gate' | 'declare';
 
-export const ACTION_OF: Record<EventType, IntentAction | null> = {
+const ACTION_OF: Record<EventType, IntentAction | null> = {
   capture_open: null,
   annotation_delta: 'annotation',
   annotation_undo: 'annotation',
@@ -112,15 +112,6 @@ export interface UtterancePayload {
   restatement: string;
   confirmed: boolean;
   rule: boolean;
-}
-
-export interface ObjectFocusPayload {
-  card_id: string;
-  candidate_id: string;
-  label: string | null;
-  ids: number[];
-  source: 'pointer' | 'speech' | 'owner_correction';
-  confidence: number;
 }
 
 /** Dedupe key: the same (session, device, generation, sequence) is the same event. */

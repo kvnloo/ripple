@@ -28,18 +28,3 @@ export function bridgeStatus(env: Record<string, string | undefined> = process.e
     reason: 'Hermes API server bridge is designed but off: needs owner approval for API_SERVER_ENABLED. Notes queue to agent-queue.jsonl.',
   };
 }
-
-/** Only ever called when bridgeStatus().enabled; loopback only. */
-export async function forwardNote(note: unknown, apiKey: string): Promise<Response> {
-  const body = {
-    model: 'hermes',
-    conversation: 'ace-ripple-review',
-    stream: true,
-    input: [{ role: 'user', content: JSON.stringify(note) }],
-  };
-  return fetch('http://127.0.0.1:8642/v1/responses', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(body),
-  });
-}

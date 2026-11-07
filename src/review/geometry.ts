@@ -126,7 +126,7 @@ export function fitRect(pane: Pane, aspect: number): { x: number; y: number; w: 
 }
 
 /** Display-normalized -> screen px. */
-export function displayToScreen(p: Pt, pane: Pane, aspect: number, v: ViewTransform): Pt {
+function displayToScreen(p: Pt, pane: Pane, aspect: number, v: ViewTransform): Pt {
   const r = fitRect(pane, aspect);
   return {
     x: pane.width / 2 + (p.x - v.cx) * r.w * v.zoom,
@@ -135,7 +135,7 @@ export function displayToScreen(p: Pt, pane: Pane, aspect: number, v: ViewTransf
 }
 
 /** Screen px -> display-normalized. */
-export function screenToDisplay(s: Pt, pane: Pane, aspect: number, v: ViewTransform): Pt {
+function screenToDisplay(s: Pt, pane: Pane, aspect: number, v: ViewTransform): Pt {
   const r = fitRect(pane, aspect);
   return {
     x: v.cx + (s.x - pane.width / 2) / (r.w * v.zoom),
@@ -167,18 +167,13 @@ export function panBy(v: ViewTransform, dxPx: number, dyPx: number, pane: Pane, 
 }
 
 /** Keep the centre inside the image so the view never drifts off into nothing. */
-export function clampView(v: ViewTransform): ViewTransform {
+function clampView(v: ViewTransform): ViewTransform {
   const half = 0.5 / v.zoom;
   return {
     zoom: v.zoom,
     cx: v.zoom <= 1 ? 0.5 : clamp(v.cx, half, 1 - half),
     cy: v.zoom <= 1 ? 0.5 : clamp(v.cy, half, 1 - half),
   };
-}
-
-/** Is a source-normalized point inside the image? */
-export function inImage(p: Pt): boolean {
-  return p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1;
 }
 
 /** Validate a transform arriving over the wire. Returns null if invalid. */

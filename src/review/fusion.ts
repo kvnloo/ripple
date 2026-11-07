@@ -15,7 +15,7 @@
 import type { WordTiming } from './events';
 import type { Group } from './mask';
 
-export const FUSION = {
+const FUSION = {
   /** pointer evidence for a word: [word.start - BEFORE, word.end + AFTER] */
   DEIXIS_BEFORE_MS: 1500,
   DEIXIS_AFTER_MS: 400,
@@ -57,7 +57,7 @@ export interface FusionInput {
   activeCandidate: string | null;
 }
 
-export interface FocusSpan {
+interface FocusSpan {
   from: number; // word index
   to: number;
   label: string;
@@ -76,7 +76,7 @@ export interface FusionResult {
 
 const DEIXIS = new Set(['this', 'that', 'these', 'those', 'here', 'there', 'it']);
 
-export function norm(w: string): string {
+function norm(w: string): string {
   return w.toLowerCase().replace(/[^a-z0-9']+/g, '').replace(/'s$/, '');
 }
 
@@ -132,7 +132,7 @@ function argmax(m: Map<string, number>): [string | null, number] {
 }
 
 /** Candidate binding from words ("old", "v2", "option 2"), else the pane in use. */
-export function bindCandidate(tokens: string[], input: FusionInput): { id: string | null; why: string } {
+function bindCandidate(tokens: string[], input: FusionInput): { id: string | null; why: string } {
   let best: { id: string; i: number } | null = null;
   for (const c of input.candidates) {
     const hits = findPhrases(tokens, c.aliases);

@@ -14,7 +14,7 @@
  * the agent, never an approval: `authority` is always "none", whatever the card's action says.
  */
 
-export const DOC_RE = /^[A-Za-z0-9][\w.-]{0,95}\.html$/;
+const DOC_RE = /^[A-Za-z0-9][\w.-]{0,95}\.html$/;
 const TOKEN_RE = /^[\w.:@#/-]{1,64}$/;
 const ID_RE = /^[\w.:\-@#/ ]{1,160}$/;
 export const LIMITS = { ids: 24, label: 500, text: 2000, entityTypes: 16, html: 2 * 1024 * 1024 } as const;
